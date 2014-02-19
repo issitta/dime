@@ -1,0 +1,43 @@
+package com.example.dimearcos.fragments;
+
+import android.os.Bundle;
+
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.LatLng;
+
+public class PlacesFragment extends SupportMapFragment {
+	private GoogleMap map;
+	private Bundle savedInstancedState;
+	public static final LatLng ARCOS = new LatLng(36.754711, -5.809829);
+	
+	@Override
+	public void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		
+		this.savedInstancedState = savedInstanceState;
+	}
+
+	@Override
+	public void onResume() {
+		super.onResume();
+		
+		setUpMap();
+	}
+
+	private void setUpMap() {
+		if(map == null){//si el mapa no existe
+			map = getMap();
+			if(map != null){//si me devuelve algo
+				if(savedInstancedState == null){//si es la primera vez que entra
+					map.moveCamera(CameraUpdateFactory.newLatLngZoom(ARCOS, 10));
+					//10 es lo cerca que quiero el zoom
+				}
+				map.getUiSettings().setZoomControlsEnabled(false);//deshabilito botones zoom
+			}
+		}
+		
+	}
+	
+}
