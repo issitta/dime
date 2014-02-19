@@ -1,0 +1,223 @@
+package com.example.dimearcos.activities;
+
+import java.util.ArrayList;
+
+import com.example.dimearcos.R;
+import com.example.dimearcos.data.Promocion;
+import com.example.dimearcos.fragments.DescripcionFragment;
+
+import com.parse.GetCallback;
+import com.parse.GetDataCallback;
+import com.parse.Parse;
+import com.parse.ParseException;
+import com.parse.ParseFile;
+import com.parse.ParseObject;
+import com.parse.ParseQuery;
+
+import android.app.Activity;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.text.method.ScrollingMovementMethod;
+import android.util.Log;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.ProgressBar;
+import android.widget.TextView;
+
+public class DetallePromocionActivity extends Activity{
+
+	public static final String QUERY = "query";
+	public static final String QUERYR = "queryr";
+	
+	TextView txtNomEmp;
+	ImageView imgPromo;
+	TextView txtRes;
+	TextView txtDet;
+	
+	Button btnShare;
+	Button btnVisit;
+	
+	String selec;
+	String resumen;
+	String detalle;
+	
+	ArrayList<Promocion> id_promos = new ArrayList<Promocion>();
+	
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		
+		setContentView(R.layout.activity_detalle_promocion);
+		
+		//inicializacion del API para conectarnos a parse
+		Parse.initialize(this, "", "");
+		
+		//inicializaciones
+		txtNomEmp = (TextView) findViewById(R.id.txtEmpresa);
+		imgPromo = (ImageView) findViewById(R.id.imgPromo);
+		txtRes = (TextView) findViewById(R.id.txtResum);
+		txtDet = (TextView) findViewById(R.id.txtDetalle);
+		btnShare = (Button) findViewById(R.id.btnShare);
+		btnVisit = (Button) findViewById(R.id.btnDetalle);
+		
+		//NOMBRE DE LA EMPRESA
+		Intent intent = getIntent();
+		selec =  intent.getStringExtra(QUERY);
+		resumen = intent.getStringExtra(QUERYR);
+		
+		txtNomEmp.setTypeface(MainActivity.tipoletra);
+		txtNomEmp.setText(selec);
+		
+		String id = "";//imagen no disponible
+		
+		//meto en array todas las promociones de la empresa seleccionada
+		id_promos = promociones_empresa_seleccionada(selec);
+		
+		//IMAGEN DE LA PROMOCION
+		//la leemos de parse.com
+		for(int i = 0; i < id_promos.size(); i++){//busco cual de las promociones es para leer la imagen correspondiente
+			//Relleno la imagen
+			if(id_promos.get(i).getResumen().equalsIgnoreCase(resumen)){
+				id = id_promos.get(i).getId_promo();
+			}
+		}//fin for
+		
+		parse(id);
+		
+		//TEXTO PARA EL RESUMEN Y DETALLE DE LA PROMOCION
+		for(int i = 0; i < MainActivity.datos_promociones.size(); i++){
+			if(selec.equalsIgnoreCase(MainActivity.datos_promociones.get(i).getEmpresa()) && 
+										resumen.equalsIgnoreCase(MainActivity.datos_promociones.get(i).getResumen())){
+				
+				detalle = MainActivity.datos_promociones.get(i).getDetalle();
+			}
+		}
+		
+		txtRes.setText(resumen);
+		
+		//TEXTO PARA EL DETALLE DE LA PROMOCION
+		txtDet.setTypeface(MainActivity.tipoletra2);
+		txtDet.setText(detalle);
+		txtDet.setMovementMethod(new ScrollingMovementMethod());
+		
+	
+		//BOTON COMPARTIR
+		btnShare.setTypeface(MainActivity.tipoletra2);
+		btnShare.setOnClickListener(new OnClickListener() {
+
+			@Override
+			public void onClick(View arg0) {
+						
+				Intent intentShare = new Intent(Intent.ACTION_SEND);
+				String msg = getString(R.string.msg_share_prom, selec, resumen);
+				intentShare.putExtra(Intent.EXTRA_TEXT, msg);
+				
+				intentShare.setType("text/plain");
+				
+				startActivity(Intent.createChooser(intentShare, getString(R.string.btn_share)));
+				
+			}
+		});
+		
+		//BOTON VISITA LA EMPRESA
+		
+		//lo hago visible dependiendo si ya estoy dentro del detalle de la empresa
+		if(MainActivity.var == true){
+			 btnVisit.setVisibility(View.INVISIBLE); 
+		}else{
+			 btnVisit.setVisibility(View.VISIBLE);
+		}
+		
+		btnVisit.setTypeface(MainActivity.tipoletra2);
+		//enlace al detalle de cada empresa
+		btnVisit.setOnClickListener(new OnClickListener() {
+		    
+			@Override
+		    public void onClick(View v) {
+		    	Intent intent = null;
+				
+				intent = new Intent(getApplicationContext(), DetalleEmpresaActivity.class);
+				intent.putExtra(DescripcionFragment.QUERY, selec);
+				
+				//inicio la actividad
+				startActivity(intent);
+		    }
+		});
+		
+	}
+
+	private ArrayList<Promocion> promociones_empresa_seleccionada(String selec2) {
+		
+		for(int i = 0; i < MainActivity.datos_promociones.size();i++){
+			if(MainActivity.datos_promociones.get(i).getEmpresa().equalsIgnoreCase(selec)){
+					id_promos.add(MainActivity.datos_promociones.get(i));
+			}
+		}
+		return id_promos;
+	}
+
+	private void parse(String id) {
+		ParseQuery<ParseObject> query = ParseQuery.getQuery("promociones");
+		
+		query.getInBackground(id, new GetCallback<ParseObject>() {	
+			@Override
+			public void done(ParseObject obj, ParseException arg1) {
+				ParseFile fileObject = (ParseFile) obj.get("imagen");
+                fileObject.getDataInBackground(new GetDataCallback() {
+                            public void done(byte[] data, ParseException e) {
+                                if (e == null) {
+                                    Bitmap bmp = BitmapFactory.decodeByteArray(data, 0, data.length);
+                                    imgPromo.setImageBitmap(bmp);
+                                } else {
+                                    Log.d("test",
+                                            "There was a problem downloading the data.");
+                                }
+                            }
+                 });	
+			}
+		});
+	}
+	
+	class APITask extends AsyncTask<Void, Void, Void>{
+
+		ProgressBar progressBar;
+	
+		@Override
+		protected void onPreExecute() {
+			super.onPreExecute();
+			
+			progressBar = (ProgressBar)findViewById(R.id.progressBar);
+			progressBar.setVisibility(View.VISIBLE);
+			//btnUpdate.setEnabled(false);
+		}
+		
+		@Override
+		protected Void doInBackground(Void... params) {
+			try{
+				Thread.sleep(2000);
+			}catch (InterruptedException e){}
+			
+			return null;
+		}
+
+		@Override
+		protected void onPostExecute(Void result) {
+			super.onPostExecute(result);
+			
+			progressBar.setVisibility(View.GONE);
+			findViewById(R.id.imgPromo).setVisibility(View.VISIBLE);
+			//btnUpdate.setEnabled(true);
+		}
+
+
+		
+
+		
+	}
+
+}
